@@ -1,0 +1,22 @@
+<% const v = values[f.name] ?? ''; const id = 'f_' + f.name; %>
+<% if (f.type === 'checkbox') { %>
+  <label class="check wide"><input type="checkbox" name="<%= f.name %>" <%= v ? 'checked' : '' %>> <%= f.label %>
+  <% if (f.help) { %><small><%= f.help %></small><% } %></label>
+<% } else { %>
+  <label class="<%= f.type === 'textarea' ? 'wide' : '' %>"><%= f.label %><% if (f.required) { %> <b class="req">*</b><% } %>
+  <% if (f.type === 'select') { %>
+    <select name="<%= f.name %>" id="<%= id %>">
+      <option value=""></option>
+      <% f.options.forEach(o => { %><option <%= String(v) === o ? 'selected' : '' %>><%= o %></option><% }) %>
+      <% if (v && !f.options.includes(String(v))) { %><option selected><%= v %></option><% } %>
+    </select>
+  <% } else if (f.type === 'textarea') { %>
+    <textarea name="<%= f.name %>" id="<%= id %>" rows="2"><%= v %></textarea>
+  <% } else if (f.type === 'number') { %>
+    <input name="<%= f.name %>" id="<%= id %>" inputmode="decimal" class="num" value="<%= v %>" placeholder="0.00">
+  <% } else { %>
+    <input type="<%= f.type === 'date' ? 'date' : 'text' %>" name="<%= f.name %>" id="<%= id %>" value="<%= v %>">
+  <% } %>
+  <% if (f.help) { %><small><%= f.help %></small><% } %>
+  </label>
+<% } %>

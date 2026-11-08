@@ -1,0 +1,14 @@
+<%- include('partials/head') %>
+<main class="auth">
+  <h1>Create account</h1>
+  <% if (first) { %><p class="note">This is the first account, so it becomes the <strong>admin</strong> (can see every client's returns and manage users).</p><% } %>
+  <form method="post" action="/register" class="card">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Full name <input name="name" required></label>
+    <label>Email <input type="email" name="email" required autocomplete="email"></label>
+    <label>Password (min. 8 characters) <input type="password" name="password" minlength="8" required autocomplete="new-password"></label>
+    <button class="btn">Create account</button>
+  </form>
+  <p>Already registered? <a href="/login">Sign in</a></p>
+</main>
+<%- include('partials/foot') %>

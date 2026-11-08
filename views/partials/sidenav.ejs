@@ -1,0 +1,13 @@
+<aside class="sidenav no-print">
+  <a class="back" href="/returns/<%= ret.id %>">← Return <%= ret.year %></a>
+  <% groups.forEach(g => { %>
+    <div class="grp"><%= g %></div>
+    <% sections.filter(s => s.group === g).forEach(s => { const c = counts[s.key] || {}; %>
+      <a href="/returns/<%= ret.id %>/s/<%= s.key %>" class="<%= typeof sec !== 'undefined' && sec && sec.key === s.key ? 'on' : '' %>">
+        <span><%= s.title %></span>
+        <% if (c.entries || c.docs) { %><em><%= (c.entries||0) %><% if (c.docs) { %> · <%= c.docs %>📎<% } %></em><% } %>
+      </a>
+    <% }) %>
+  <% }) %>
+  <a class="summary-link" href="/returns/<%= ret.id %>/summary">View filing summary →</a>
+</aside>

@@ -1,0 +1,44 @@
+<%- include('partials/head') %>
+<main class="narrow">
+  <h1>Tax returns</h1>
+  <% if (user.role === 'admin') { %><p class="muted">You are an admin and see every client's returns. <a href="/?mine=1">Show only mine</a></p><% } %>
+
+  <% if (!returns.length) { %>
+    <div class="empty card">
+      <p><strong>No returns yet.</strong> Start one for the year you are filing. The year of assessment runs 1 April to 31 March and the return is due by 30 November.</p>
+    </div>
+  <% } else { %>
+  <table class="grid">
+    <thead><tr><th>Year of assessment</th><th>Label</th><% if (user.role === 'admin') { %><th>Client</th><% } %><th>Status</th><th>Updated</th><th></th></tr></thead>
+    <tbody>
+    <% returns.forEach(r => { %>
+      <tr>
+        <td><a href="/returns/<%= r.id %>"><strong><%= r.year %></strong></a></td>
+        <td><%= r.label || '' %></td>
+        <% if (user.role === 'admin') { %><td><%= r.owner_name %></td><% } %>
+        <td><span class="pill <%= r.status %>"><%= r.status %></span></td>
+        <td><%= r.updated_at.slice(0,10) %></td>
+        <td class="right"><a href="/returns/<%= r.id %>/summary">Summary</a></td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+  <% } %>
+
+  <h2>Start a new return</h2>
+  <form method="post" action="/returns" class="card form-grid">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Year of assessment
+      <select name="year"><% years.forEach(y => { %><option <%= y === defaultYear ? 'selected' : '' %>><%= y %></option><% }) %></select>
+    </label>
+    <label>Label (optional) <input name="label" placeholder="e.g. Pramesh – final"></label>
+    <% if (user.role === 'admin') { %>
+    <label>Client
+      <select name="owner"><% users.forEach(u => { %><option value="<%= u.id %>" <%= u.id === user.id ? 'selected' : '' %>><%= u.name %> (<%= u.email %>)</option><% }) %></select>
+    </label>
+    <% } %>
+    <label class="check"><input type="checkbox" name="copy" checked> Copy taxpayer details, assets, liabilities and businesses from the previous year</label>
+    <div class="actions"><button class="btn">Create return</button></div>
+  </form>
+</main>
+<%- include('partials/foot') %>

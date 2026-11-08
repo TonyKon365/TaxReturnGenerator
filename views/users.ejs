@@ -1,0 +1,27 @@
+<%- include('partials/head') %>
+<main class="narrow">
+  <h1>Users</h1>
+  <table class="grid">
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th></th></tr></thead>
+    <tbody>
+    <% users.forEach(u => { %>
+      <tr><td><%= u.name %></td><td><%= u.email %></td><td><%= u.role %></td><td><%= u.created_at.slice(0,10) %></td>
+      <td><% if (u.id !== user.id) { %>
+        <form method="post" action="/admin/users/<%= u.id %>/role" class="inline">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <input type="hidden" name="role" value="<%= u.role === 'admin' ? 'user' : 'admin' %>">
+          <button class="link"><%= u.role === 'admin' ? 'Make user' : 'Make admin' %></button>
+        </form><% } %></td></tr>
+    <% }) %>
+    </tbody>
+  </table>
+  <h2>Add a client account</h2>
+  <form method="post" action="/admin/users" class="card form-grid">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Full name <input name="name" required></label>
+    <label>Email <input type="email" name="email" required></label>
+    <label>Temporary password <input name="password" minlength="8" required></label>
+    <div class="actions"><button class="btn">Create account</button></div>
+  </form>
+</main>
+<%- include('partials/foot') %>

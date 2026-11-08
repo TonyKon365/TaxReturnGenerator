@@ -1,0 +1,361 @@
+<%- include('partials/head', { bodyClass: 'paper' }) %>
+<%
+  const c = calc.cages; const p = calc.profile; const D = (k) => data[k] || [];
+  const v = (x) => (x === undefined || x === null || x === '' ? '' : fmt(x));
+  const end = calc.bounds.endLabel;
+%>
+<% function row(label, cage, val, cls) { %>
+  <tr class="<%= cls || '' %>"><td><%= label %></td><td class="cage"><%= cage %></td><td class="amt"><%= v(val) %></td></tr>
+<% } %>
+<main class="sheet">
+  <div class="toolbar no-print">
+    <a href="/returns/<%= ret.id %>">← Back to return</a>
+    <span>
+      <button class="btn" data-print>Print / Save as PDF</button>
+      <a class="btn ghost" href="/returns/<%= ret.id %>/export.zip">Download with documents (ZIP)</a>
+    </span>
+  </div>
+
+  <header class="sheet-head">
+    <div class="eyebrow">Prepared for entry into IRD RAMIS · eservices.ird.gov.lk</div>
+    <h1>Individual income tax – filing summary</h1>
+    <table class="ident">
+      <tr><th>Taxpayer Identification Number (TIN)</th><td><%= p.tin || '—' %></td></tr>
+      <tr><th>Name of taxpayer</th><td><%= (p.full_name || '—').toUpperCase() %></td></tr>
+      <tr><th>Year of assessment</th><td><%= calc.year %> <span class="muted">(<%= calc.bounds.start %> – <%= calc.bounds.end %>)</span></td></tr>
+      <tr><th>Residency</th><td><%= p.residency || 'Resident' %></td></tr>
+      <tr><th>Senior citizen</th><td><%= p.senior_citizen || 'No' %></td></tr>
+    </table>
+  </header>
+
+  <% if (calc.warnings.length || calc.notes.length) { %>
+  <section class="notes">
+    <h2>Preparer notes</h2>
+    <ul>
+      <% calc.warnings.forEach(w => { %><li class="w"><%= w %></li><% }) %>
+      <% calc.notes.forEach(w => { %><li><%= w %></li><% }) %>
+    </ul>
+  </section>
+  <% } %>
+
+  <section>
+    <h2>Part A – Income liable to tax</h2>
+    <table class="cages">
+      <% row('Employment income (Rs.)', 10, c[10]) %>
+      <% row('Business income (Rs.)', 20, c[20]) %>
+      <% row('Investment income (Rs.)', 30, c[30]) %>
+      <% row('Other income (Rs.)', 40, c[40]) %>
+      <% row('Assessable income (10+20+30+40) (Rs.)', 50, c[50], 'total') %>
+    </table>
+
+    <h2>Part B – Deductions from assessable income</h2>
+    <table class="cages">
+      <% row('Relief for rent income (Rs.)', 60, c[60]) %>
+      <% row("Relief on resident's solar panel (Rs.)", 70, c[70]) %>
+      <% row('Personal relief (Rs.)', 80, c[80]) %>
+      <% row('Total reliefs (60 + 70 + 80) (Rs.)', 90, c[90], 'sub') %>
+      <% row('Qualifying payments (Rs.)', 100, c[100]) %>
+      <% row('Total deductions from assessable income (90 + 100) (Rs.)', 110, c['110B'], 'sub') %>
+      <% row('Taxable income (50 − 110) (Rs.)', 120, c[120], 'total') %>
+    </table>
+
+    <h2>Part C – Calculation of tax payable</h2>
+    <table class="cages">
+      <% row('Tax on terminal benefits (Rs.)', 130, c[130]) %>
+      <% row('Tax on gain on realization of investment assets (Rs.)', 140, c[140]) %>
+      <% row('Tax on balance taxable income (Rs.)', 150, c[150]) %>
+      <% row('Tax on final withholding payments (WHT not deducted) (Rs.)', 160, c[160]) %>
+      <% row('Total tax payable (130+140+150+160) (Rs.)', 170, c[170], 'total') %>
+      <% row('Less: tax credits (Rs.)', 180, c[180]) %>
+      <% row('Balance tax payable (if 170 > 180, then 170 − 180) (Rs.)', 190, c[190], c[190] > 0 ? 'total bad' : '') %>
+      <% row('Refund claimed (if 170 < 180, then 180 − 170) (Rs.)', 200, c[200], c[200] > 0 ? 'total good' : '') %>
+    </table>
+
+    <h2>Part D – Exempt income</h2>
+    <table class="cages">
+      <% row('Total exempt income (115+216+317) (Rs.)', 210, c[210]) %>
+      <% row('Foreign currency remitted amounts (406.E)', '210A', c['210A']) %>
+    </table>
+  </section>
+
+  <section class="page-break">
+    <h2>Schedule 1 – Employment income</h2>
+    <% const emp = D('employment'); %>
+    <table class="list">
+      <thead><tr><th>S/N</th><th>Type</th><th>Employer / company</th><th>TIN of employer</th><th class="amt">Remuneration (Rs.)</th><th class="amt">Terminal benefits (Rs.)</th><th class="amt">APIT (Rs.)</th></tr></thead>
+      <tbody><% emp.forEach((e, i) => { %><tr><td><%= i+1 %></td><td><%= e.type %><%= e.foreign_fx ? ' · FX' : '' %></td><td><%= e.employer %></td><td><%= e.employer_tin %></td><td class="amt"><%= v(e.remuneration) %></td><td class="amt"><%= v(e.terminal_benefits) %></td><td class="amt"><%= v(e.apit) %></td></tr><% }) %>
+      <% if (!emp.length) { %><tr><td colspan="7" class="muted">None</td></tr><% } %></tbody>
+    </table>
+    <table class="cages">
+      <% row('Total remuneration', 105, c[105]) %><% row('Total terminal benefits', 110, c[110]) %>
+      <% row('Total employment income (105 + 110)', 111, c[111], 'sub') %>
+      <% row('Part II – Exempt / excluded employment income', 115, c[115]) %>
+    </table>
+
+    <h2>Schedule 2 – Business income</h2>
+    <table class="list">
+      <thead><tr><th>S/N</th><th>Activity code</th><th>Nature of the business</th><th class="amt">Turnover (Rs.)</th><th class="amt">Expenses (Rs.)</th><th class="amt">Gains and profits (Rs.)</th></tr></thead>
+      <tbody><% calc.bizRows.forEach((b, i) => { %><tr><td><%= i+1 %></td><td><%= b.activity_code %></td><td><%= (b.nature||'').toUpperCase() %><%= b.foreign_fx ? ' (foreign, FX remitted)' : '' %></td><td class="amt"><%= v(b.turnover) %></td><td class="amt"><%= v(b.expenses_total) %></td><td class="amt"><%= v(b.profit) %></td></tr><% }) %>
+      <% if (!calc.bizRows.length) { %><tr><td colspan="6" class="muted">None</td></tr><% } %></tbody>
+    </table>
+    <table class="cages">
+      <% row('Total business income from sole proprietorship', 204, c[204]) %>
+      <% row('Total business turnover from proprietorship', '204A', c['204A']) %>
+      <% row('Total business income (204 + 209 + 214)', 215, c[215], 'sub') %>
+      <% row('Part II – Exempt / excluded business gains and profits', 216, c[216]) %>
+    </table>
+
+    <h2>Schedule 3 – Investment income</h2>
+    <% const inv = D('investment').filter(i => !i.final_wht); %>
+    <table class="list">
+      <thead><tr><th>S/N</th><th>Activity code</th><th>Type of income</th><th>Payer</th><th class="amt">Gains and profits (Rs.)</th></tr></thead>
+      <tbody><% inv.forEach((x, i) => { %><tr><td><%= i+1 %></td><td><%= x.activity_code %></td><td><%= (x.income_type||'').toUpperCase() %><%= x.foreign_fx ? ' (foreign)' : '' %></td><td><%= x.payer %></td><td class="amt"><%= v(x.gross_amount) %></td></tr><% }) %>
+      <% if (!inv.length) { %><tr><td colspan="5" class="muted">None</td></tr><% } %></tbody>
+    </table>
+    <table class="cages">
+      <% row('Total investment income (other than partnership or trust)', 304, c[304]) %>
+      <% row('Total investment income (304 + 309 + 314)', 315, c[315], 'sub') %>
+      <% row('Relief for rent income (25% of rent income)', 316, c[316]) %>
+      <% row('Exempt amounts / excluded amount', 317, c[317]) %>
+    </table>
+
+    <h2>Schedule 4 – Other income</h2>
+    <% const oth = D('other_income'); %>
+    <table class="list">
+      <thead><tr><th>Type of income</th><th class="amt">Gains and profits (Rs.)</th></tr></thead>
+      <tbody><% oth.forEach(o => { %><tr><td><%= o.type %></td><td class="amt"><%= v(o.amount) %></td></tr><% }) %>
+      <% if (!oth.length) { %><tr><td colspan="2" class="muted">None</td></tr><% } %></tbody>
+    </table>
+    <table class="cages"><% row('Total of other income', 403, c[403]) %><% row('Total of other income turnover', '403A', c['403A']) %></table>
+
+    <h2>210A – Foreign currency remitted into Sri Lanka during the year</h2>
+    <table class="list fx">
+      <thead><tr><th>Description</th><th class="amt">Employment (a)</th><th class="amt">Business (b)</th><th class="amt">Investment (c)</th><th class="amt">Other (d)</th><th class="amt">Total (e)</th></tr></thead>
+      <tbody>
+        <tr><td>Turnover / income Rs. <span class="cage">404</span></td><% [1,2,3,4,5].forEach(k => { %><td class="amt"><%= v(c['404.'+k]) %></td><% }) %></tr>
+        <tr><td>Gain / profit Rs. <span class="cage">405</span></td><% [1,2,3,4,5].forEach(k => { %><td class="amt"><%= v(c['405.'+k]) %></td><% }) %></tr>
+        <tr><td>Remitted amount Rs. <span class="cage">406</span></td><% [1,2,3,4,5].forEach(k => { %><td class="amt"><%= v(c['406.'+k]) %></td><% }) %></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page-break">
+    <h2>Schedule 5 – Qualifying payments & solar panel</h2>
+    <table class="list">
+      <thead><tr><th>Donation made</th><th class="cage">Paid</th><th class="amt">Amount paid (Rs.)</th><th class="cage">Ded.</th><th class="amt">Deductible (Rs.)</th></tr></thead>
+      <tbody>
+        <% [['To approved charity',1],['To the Government',2],['To other specified institutions',3],['Shop for a female of a Samurdhi beneficiary family',4],['Expenditure on film industry',5]].forEach(([l,k]) => { %>
+          <tr><td><%= l %></td><td class="cage">502.<%= k %></td><td class="amt"><%= v(c['502.'+k]) %></td><td class="cage">503.<%= k %></td><td class="amt"><%= v(c['503.'+k]) %></td></tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <table class="cages"><% row('Total qualifying payments', 504, c[504]) %><% row('Total deductible qualifying payments (504 + 509)', 510, c[510]) %></table>
+    <table class="list">
+      <thead><tr><th>C – Expenditure on solar panel</th><th class="amt">Total expenditure <span class="cage">511</span></th><th class="amt">Claimable <span class="cage">512</span></th><th class="amt">Carried forward <span class="cage">513</span></th></tr></thead>
+      <tbody><tr><td>Expenditure on solar panel</td><td class="amt"><%= v(c[511]) %></td><td class="amt"><%= v(c[512]) %></td><td class="amt"><%= v(c[513]) %></td></tr></tbody>
+    </table>
+
+    <h2>Schedule 6 – Final withholding payments</h2>
+    <% const fin = D('investment').filter(i => i.final_wht); %>
+    <table class="list">
+      <thead><tr><th>S/N</th><th>Type</th><th>Payer</th><th class="amt">Amount received (Rs.)</th><th class="amt">WHT paid (Rs.)</th></tr></thead>
+      <tbody><% fin.forEach((x, i) => { %><tr><td><%= i+1 %></td><td><%= x.income_type %></td><td><%= x.payer %></td><td class="amt"><%= v(x.gross_amount) %></td><td class="amt"><%= v(x.wht) %></td></tr><% }) %>
+      <% if (!fin.length) { %><tr><td colspan="5" class="muted">None</td></tr><% } %></tbody>
+    </table>
+    <table class="cages"><% row('Total final WHT deducted (total of cage 605)', 605, c[605]) %></table>
+
+    <h2>Schedule 7 – Withholding tax (A – AIT/WHT deducted by withholding agent)</h2>
+    <% const wht = D('wht_certificates'); %>
+    <table class="list small">
+      <thead><tr><th>S/N</th><th>Source/type</th><th>TIN of agent</th><th>Certificate no.</th><th class="amt">Amount received (Rs.)</th><th>Date of payment</th><th class="amt">AIT/WHT (Rs.)</th></tr></thead>
+      <tbody><% wht.forEach((w, i) => { %><tr><td><%= i+1 %></td><td><%= w.source_type %></td><td><%= w.agent_tin %></td><td class="mono"><%= w.certificate_no %></td><td class="amt"><%= v(w.amount_received) %></td><td><%= w.payment_date %></td><td class="amt"><%= v(w.wht) %></td></tr><% }) %>
+      <% if (!wht.length) { %><tr><td colspan="7" class="muted">None</td></tr><% } %></tbody>
+    </table>
+    <table class="cages">
+      <% row('Total AIT/WHT deducted (total of cage 706)', 707, c[707]) %>
+      <% row('AIT/WHT B/F on advance receipts', 708, c[708]) %>
+      <% row('Total AIT/WHT (707 + 708)', 709, c[709], 'sub') %>
+      <% row('AIT/WHT claimed for the Y/A ' + calc.year, 710, c[710]) %>
+      <% row('AIT/WHT C/F on advance receipts (709 − 710)', 711, c[711]) %>
+    </table>
+  </section>
+
+  <section class="page-break">
+    <h2>Schedule 8 – Tax calculation</h2>
+    <table class="list">
+      <thead><tr><th></th><th class="cage">Cage</th><th class="amt">Income (Rs.)</th><th class="amt">Rate</th><th class="amt">Tax (Rs.)</th></tr></thead>
+      <tbody>
+        <tr><td>A. Taxable income from cage 120</td><td class="cage">801</td><td class="amt"><%= v(c[801]) %></td><td></td><td></td></tr>
+        <tr><td>B. Total terminal benefits</td><td class="cage">802</td><td class="amt"><%= v(c[802]) %></td><td></td><td></td></tr>
+        <tr><td>&nbsp;&nbsp;Terminal benefits – special rate</td><td class="cage">803a</td><td class="amt"><%= v(c['803a.1']) %></td><td class="amt">0%</td><td class="amt"><%= v(c['803a.3']) %></td></tr>
+        <tr><td></td><td class="cage">803b</td><td class="amt"><%= v(c['803b.1']) %></td><td class="amt">6%</td><td class="amt"><%= v(c['803b.3']) %></td></tr>
+        <tr><td></td><td class="cage">803c</td><td class="amt"><%= v(c['803c.1']) %></td><td class="amt">12%</td><td class="amt"><%= v(c['803c.3']) %></td></tr>
+        <tr><td>&nbsp;&nbsp;Total tax on terminal benefits</td><td class="cage">805</td><td></td><td></td><td class="amt"><%= v(c[805]) %></td></tr>
+        <tr><td>C. Gain on realization of investment assets</td><td class="cage">806</td><td class="amt"><%= v(c['806.1']) %></td><td class="amt"><%= calc.rates.cgtRate*100 %>%</td><td class="amt"><%= v(c['806.3']) %></td></tr>
+        <tr><td>E. Betting & gaming, liquor, tobacco</td><td class="cage">808</td><td></td><td></td><td class="amt"><%= v(c['808.3']) %></td></tr>
+        <tr><td>Taxable income at progressive rates</td><td class="cage">809.A</td><td class="amt"><%= v(c['809.A.1']) %></td><td class="amt">6–36%</td><td class="amt"><%= v(c['809.A.3']) %></td></tr>
+        <tr><td>Any other taxable income<% if (calc.rates.foreignCapRate) { %> – foreign currency income (max <%= calc.rates.foreignCapRate*100 %>%)<% } %></td><td class="cage">809.B</td><td class="amt"><%= v(c['809.B.1']) %></td><td class="amt"><%= calc.rates.foreignCapRate ? '≤' + calc.rates.foreignCapRate*100 + '%' : '' %></td><td class="amt"><%= v(c['809.B.3']) %></td></tr>
+        <tr class="sub"><td>Tax on total taxable income (808.3 + 809.A.3 + 809.B.3)</td><td class="cage">810</td><td></td><td></td><td class="amt"><%= v(c[810]) %></td></tr>
+        <tr><td>F. Tax on final withholding payments (WHT not deducted)</td><td class="cage">811</td><td></td><td></td><td class="amt"><%= v(c[811]) %></td></tr>
+      </tbody>
+    </table>
+    <% if (calc.progressive.bands.length) { %>
+    <details class="bands" open>
+      <summary>How cage 150 is worked out (rate bands)</summary>
+      <table class="list small">
+        <thead><tr><th>Band (Rs.)</th><th class="amt">Ordinary income</th><th class="amt">Rate</th><th class="amt">Foreign FX income</th><th class="amt">Rate</th><th class="amt">Tax</th></tr></thead>
+        <tbody><% calc.progressive.bands.forEach(b => { %><tr><td><%= fmt(b.from).replace('.00','') %> – <%= b.to === Infinity ? '∞' : fmt(b.to).replace('.00','') %></td><td class="amt"><%= v(b.normal) %></td><td class="amt"><%= (b.rate*100).toFixed(0) %>%</td><td class="amt"><%= v(b.foreign) %></td><td class="amt"><%= (b.foreignRate*100).toFixed(0) %>%</td><td class="amt"><%= v(b.tax) %></td></tr><% }) %></tbody>
+      </table>
+      <p class="muted small">Reliefs are set against ordinary income first; ordinary income fills the lowest bands. RAMIS calculates the final figure — compare it with this.</p>
+    </details>
+    <% } %>
+
+    <h2>Schedule 9 – Tax credits</h2>
+    <table class="cages">
+      <% row('Foreign tax credit', 901, c[901]) %>
+      <% row('APIT paid on employment income – primary employment', '903A', c['903A']) %>
+      <% row('APIT paid on employment income – secondary employment', '904A', c['904A']) %>
+      <% row('Tax paid for terminal benefits', 905, c[905]) %>
+      <% row("Partner's share of partnership tax", 906, c[906]) %>
+      <% row('AIT from the partnership', 907, c[907]) %>
+      <% row('Advance income tax credit (cage 710)', 908, c[908]) %>
+      <% row('Tax paid on gain on realization of investment assets (CGT)', 909, c[909]) %>
+      <% row('Installment payments and AIT/WHT paid by withholdee (cage 934)', 911, c[911]) %>
+      <% row('Total tax credits (901 to 911)', 912, c[912], 'total') %>
+    </table>
+
+    <h2>Schedule 9B – Installment payments</h2>
+    <table class="list">
+      <thead><tr><th></th><th class="cage">Cage</th><th>Payment date</th><th class="amt">Amount paid (Rs.)</th></tr></thead>
+      <tbody><% calc.instRows.forEach(r => { %><tr><td><%= r.label %></td><td class="cage"><%= r.cage %></td><td><%= r.date %></td><td class="amt"><%= v(r.amount) %></td></tr><% }) %></tbody>
+    </table>
+    <table class="cages"><% row('Total self-assessment payment', 932, c[932]) %><% row('Total installment payments and AIT/WHT payments', 934, c[934], 'sub') %></table>
+  </section>
+
+  <section class="page-break">
+    <h2>Statement of assets & liabilities as at <%= end %></h2>
+
+    <h3>A. Immovable properties</h3>
+    <table class="list"><thead><tr><th>S/N</th><th>Situation of property</th><th>Date of acquisition</th><th class="amt">Cost (Rs.)</th><th class="amt">Market value (Rs.)</th></tr></thead>
+      <tbody><% D('immovable').forEach((x,i) => { %><tr><td>A <%= i+1 %></td><td><%= x.situation %><%= x.how && x.how !== 'Purchased' ? ' (' + x.how.toLowerCase() + ')' : '' %></td><td><%= x.acquired_on %></td><td class="amt"><%= v(x.cost) %></td><td class="amt"><%= v(x.market_value) %></td></tr><% }) %>
+      <% if (!D('immovable').length) { %><tr><td colspan="5" class="muted">None</td></tr><% } %></tbody></table>
+
+    <h3>B.i Motor vehicles</h3>
+    <table class="list"><thead><tr><th>S/N</th><th>Description</th><th>Registration no.</th><th>Date of acquisition</th><th class="amt">Cost / market value (Rs.)</th></tr></thead>
+      <tbody><% D('vehicles').forEach((x,i) => { %><tr><td>A <%= i+1 %></td><td><%= x.model %><%= x.how && x.how !== 'Purchased' ? ' (' + x.how.toLowerCase() + (x.gifted_by ? ' by ' + x.gifted_by : '') + ')' : '' %></td><td><%= x.reg_no %></td><td><%= x.acquired_on %></td><td class="amt"><%= v(x.value) %></td></tr><% }) %>
+      <% if (!D('vehicles').length) { %><tr><td colspan="5" class="muted">None</td></tr><% } %></tbody></table>
+
+    <h3>B.ii Bank balances including term deposits as at <%= end %></h3>
+    <table class="list"><thead><tr><th>S/N</th><th>Bank / financial institution</th><th>Account no.</th><th class="amt">Amount invested (Rs.)</th><th class="amt">Interest (Rs.)</th><th class="amt">Balance (Rs.)</th></tr></thead>
+      <tbody><% D('bank_balances').forEach((x,i) => { %><tr><td>A <%= i+1 %></td><td><%= (x.bank||'').toUpperCase() %></td><td class="mono"><%= x.account_no %></td><td class="amt"><%= v(x.amount_invested === '' ? x.balance : x.amount_invested) %></td><td class="amt"><%= v(x.interest || 0) %></td><td class="amt"><%= v(x.balance) %></td></tr><% }) %>
+      <% if (!D('bank_balances').length) { %><tr><td colspan="6" class="muted">None</td></tr><% } %></tbody>
+      <tfoot><tr><td colspan="5">Total</td><td class="amt"><%= v(calc.assets.bank) %></td></tr></tfoot></table>
+
+    <h3>B.iii Shares / stocks / securities as at <%= end %></h3>
+    <table class="list"><thead><tr><th>S/N</th><th>Company / institution</th><th class="amt">No. of shares</th><th>Date of acquisition</th><th class="amt">Cost / market value (Rs.)</th><th class="amt">Net dividend (Rs.)</th></tr></thead>
+      <tbody><% D('shares').forEach((x,i) => { %><tr><td>A <%= i+1 %></td><td><%= x.company %> <span class="muted">(<%= x.portfolio %>)</span></td><td class="amt"><%= x.quantity %></td><td><%= x.acquisition_date %></td><td class="amt"><%= v(x.cost) %></td><td class="amt"><%= v(x.dividend) %></td></tr><% }) %>
+      <% if (!D('shares').length) { %><tr><td colspan="6" class="muted">None</td></tr><% } %></tbody></table>
+
+    <table class="cages">
+      <% row('iv. Cash in hand as at ' + end, 1019, c[1019]) %>
+      <% row('v. Loans given & amount receivable as at ' + end, 1020, c[1020]) %>
+      <% row('vi. Value of gold, silver, gems, jewellery etc. as at ' + end, 1021, c[1021]) %>
+    </table>
+    <% if (D('gold_gems').length) { %>
+    <table class="list small"><thead><tr><th>Gold / gems / other – description</th><th>Quantity</th><th>Year</th><th>Purchased / gifted</th><th class="amt">Value (Rs.)</th></tr></thead>
+      <tbody><% D('gold_gems').forEach(x => { %><tr><td><%= x.description %></td><td><%= x.quantity %></td><td><%= x.acquired_year %></td><td><%= x.how %></td><td class="amt"><%= v(x.value) %></td></tr><% }) %></tbody></table>
+    <% } %>
+
+    <h3>C. Properties held as part of business</h3>
+    <table class="list"><thead><tr><th>S/N</th><th>Name of business</th><th class="amt">Current account (Rs.)</th><th class="amt">Capital account (Rs.)</th></tr></thead>
+      <tbody><% D('business_assets').forEach((x,i) => { %><tr><td><%= i+1 %></td><td><%= x.business %></td><td class="amt"><%= v(x.current_balance) %></td><td class="amt"><%= v(x.capital_balance) %></td></tr><% }) %>
+      <% if (!D('business_assets').length) { %><tr><td colspan="4" class="muted">None</td></tr><% } %></tbody></table>
+
+    <h3>D. Liabilities as at <%= end %></h3>
+    <table class="list"><thead><tr><th>S/N</th><th>Description of liability</th><th>Security</th><th>Date of commencement</th><th class="amt">Original amount (Rs.)</th><th class="amt">Repaid during Y/A (Rs.)</th><th class="amt">Liability at <%= end %> (Rs.)</th></tr></thead>
+      <tbody><% D('liabilities').forEach((x,i) => { %><tr><td>A <%= i+1 %></td><td><%= (x.type === 'Credit card' ? 'CREDIT CARD - ' + (x.lender||'') : (x.description || x.type + (x.lender ? ' – ' + x.lender : ''))).toUpperCase() %></td><td><%= x.security %></td><td><%= x.start_date %></td><td class="amt"><%= v(x.original_amount) %></td><td class="amt"><%= v(x.repaid) %></td><td class="amt"><%= v(x.balance) %></td></tr><% }) %>
+      <% if (!D('liabilities').length) { %><tr><td colspan="7" class="muted">None</td></tr><% } %></tbody>
+      <tfoot><tr><td colspan="6">Total</td><td class="amt"><%= v(calc.liabilities.total) %></td></tr></tfoot></table>
+
+    <h3>Part 2 A. Assets acquired or gifts received during the year</h3>
+    <table class="list"><thead><tr><th>S/N</th><th>Description of asset</th><th>Date of acquisition</th><th>Gift / exchange / purchase</th><th class="amt">Cost / market value (Rs.)</th></tr></thead>
+      <tbody><% D('acquisitions').forEach((x,i) => { %><tr><td><%= i+1 %></td><td><%= x.description %><%= x.from_whom ? ' – from ' + x.from_whom : '' %></td><td><%= x.date %></td><td><%= x.method %></td><td class="amt"><%= v(x.value) %></td></tr><% }) %>
+      <% if (!D('acquisitions').length) { %><tr><td colspan="5" class="muted">None</td></tr><% } %></tbody></table>
+
+    <h3>Part 2 B. Disposal of assets including shares during the year</h3>
+    <table class="list"><thead><tr><th>S/N</th><th>Description</th><th>Date of disposal</th><th class="amt">Sales proceeds (Rs.)</th><th>Date acquired</th><th class="amt">Cost (Rs.)</th></tr></thead>
+      <tbody><% D('disposals').forEach((x,i) => { %><tr><td><%= i+1 %></td><td><%= x.description %></td><td><%= x.disposal_date %></td><td class="amt"><%= v(x.proceeds) %></td><td><%= x.acquired_date %></td><td class="amt"><%= v(x.cost) %></td></tr><% }) %>
+      <% if (!D('disposals').length) { %><tr><td colspan="6" class="muted">None</td></tr><% } %></tbody></table>
+
+    <table class="cages">
+      <% row('Total assets', '', calc.assets.total) %>
+      <% row('Total liabilities', '', calc.liabilities.total) %>
+      <% row('Net worth at ' + end, '', calc.netWorth, 'total') %>
+    </table>
+  </section>
+
+  <section class="page-break annex">
+    <h2>Annex – working papers (not entered in RAMIS)</h2>
+
+    <% if (calc.recon) { const r = calc.recon; %>
+    <h3>Wealth reconciliation</h3>
+    <table class="cages">
+      <% row('Net worth at start of year', '', r.opening) %>
+      <% row('Net worth at end of year', '', r.closing) %>
+      <% row('Increase / (decrease) in net worth', '', r.actual, 'sub') %>
+      <% row('Add: income received (assessable + exempt + net final-WHT income, excl. gains)', '', r.cashIncome) %>
+      <% row('Add: gifts / inheritance received', '', r.giftsIn) %>
+      <% row('Add: gains on investment assets and disposals', '', r.gains + r.disposalGain) %>
+      <% row('Less: taxes paid / deducted', '', -r.taxPaid) %>
+      <% row('Less: personal & household expenses', '', -r.living) %>
+      <% row('Explained change in net worth', '', r.explained, 'sub') %>
+      <% row('Difference (unexplained)', '', r.difference, Math.abs(r.difference) > 100000 ? 'total bad' : 'total') %>
+    </table>
+    <% } %>
+
+    <% if (D('business_expenses').length) { %>
+    <h3>Business expenses breakup</h3>
+    <table class="list small"><thead><tr><th>Business</th><th>Category</th><th>Description</th><th>Date</th><th class="amt">Amount (Rs.)</th></tr></thead>
+      <tbody><% D('business_expenses').forEach(x => { %><tr><td><%= x.business %></td><td><%= x.category %></td><td><%= x.description %></td><td><%= x.date %></td><td class="amt"><%= v(x.amount) %></td></tr><% }) %></tbody>
+      <tfoot><tr><td colspan="4">Total</td><td class="amt"><%= v(D('business_expenses').reduce((a,x)=>a+(Number(x.amount)||0),0)) %></td></tr></tfoot></table>
+    <% } %>
+
+    <% if (D('living_expenses').length) { %>
+    <h3>Personal & household expenses</h3>
+    <table class="list small"><thead><tr><th>Category</th><th>Description</th><th class="amt">Annual amount (Rs.)</th></tr></thead>
+      <tbody><% D('living_expenses').forEach(x => { %><tr><td><%= x.category %></td><td><%= x.description %></td><td class="amt"><%= v(x.amount) %></td></tr><% }) %></tbody>
+      <tfoot><tr><td colspan="2">Total</td><td class="amt"><%= v(D('living_expenses').reduce((a,x)=>a+(Number(x.amount)||0),0)) %></td></tr></tfoot></table>
+    <% } %>
+
+    <% if (D('foreign_remittances').length) { %>
+    <h3>Foreign remittances detail</h3>
+    <table class="list small"><thead><tr><th>Date</th><th>Bank</th><th>Payer</th><th>Currency</th><th class="amt">FX amount</th><th class="amt">LKR (Rs.)</th><th>Category</th></tr></thead>
+      <tbody><% D('foreign_remittances').forEach(x => { %><tr><td><%= x.date %></td><td><%= x.bank %></td><td><%= x.payer %></td><td><%= x.currency %></td><td class="amt"><%= v(x.fx_amount) %></td><td class="amt"><%= v(x.lkr_amount) %></td><td><%= x.category %></td></tr><% }) %></tbody></table>
+    <% } %>
+
+    <h3>Supporting documents (<%= docs.length %>)</h3>
+    <% if (docs.length) { %>
+    <table class="list small"><thead><tr><th>Section</th><th>File</th><th>Note</th></tr></thead>
+      <tbody><% docs.forEach(d => { const s = sections.find(x => x.key === d.section); %><tr><td><%= s ? s.title : d.section %></td><td><%= d.original_name %></td><td><%= d.note %></td></tr><% }) %></tbody></table>
+    <% } else { %><p class="muted">No documents uploaded.</p><% } %>
+  </section>
+
+  <section class="page-break">
+    <h2>Declaration</h2>
+    <table class="ident">
+      <tr><th>Did another person prepare the return?</th><td><%= p.prepared_by_other || 'No' %></td></tr>
+      <% if (p.prepared_by_other === 'Yes') { %>
+      <tr><th>Approved accountant / authorized person</th><td><%= p.preparer_name %></td></tr>
+      <tr><th>Designation</th><td><%= p.preparer_designation %></td></tr>
+      <tr><th>Telephone / email</th><td><%= p.preparer_phone %> <%= p.preparer_email %></td></tr>
+      <% } %>
+      <tr><th>Full name of the declarant</th><td><%= (p.full_name || '').toUpperCase() %></td></tr>
+      <tr><th>Telephone number</th><td><%= p.telephone %></td></tr>
+      <tr><th>Mobile</th><td><%= p.mobile %></td></tr>
+      <tr><th>Email</th><td><%= p.email %></td></tr>
+      <tr><th>National Identity Card number</th><td><%= p.nic %></td></tr>
+    </table>
+    <p class="muted small">Generated <%= new Date().toISOString().slice(0,10) %>. This summary mirrors the RAMIS return layout to help you fill the online return; RAMIS remains the authoritative calculation.</p>
+  </section>
+</main>
+<%- include('partials/foot') %>

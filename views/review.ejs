@@ -1,0 +1,37 @@
+<%- include('partials/head') %>
+<main class="wide">
+  <a href="/returns/<%= ret.id %>/s/<%= sec.key %>">← <%= sec.title %></a>
+  <h1><%= title %></h1>
+  <p class="muted">From <strong><%= source %></strong>. Edit anything that is wrong, untick rows you don't want, then add.</p>
+  <% if (notes) { %><div class="flash warn"><strong>Check:</strong> <%= notes %></div><% } %>
+  <% if (!rows.length) { %>
+    <p>No rows were found. <a href="/returns/<%= ret.id %>/s/<%= sec.key %>">Enter them manually</a>.</p>
+  <% } else { %>
+  <form method="post" action="/returns/<%= ret.id %>/s/<%= sec.key %>/bulk">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <input type="hidden" name="rows" value="<%= JSON.stringify(rows) %>">
+    <div class="table-wrap">
+    <table class="grid review">
+      <thead><tr><th><input type="checkbox" data-toggle-all checked></th><% sec.fields.forEach(f => { %><th><%= f.label %></th><% }) %></tr></thead>
+      <tbody>
+      <% rows.forEach((r, i) => { %>
+        <tr>
+          <td><input type="checkbox" name="include" value="<%= i %>" checked></td>
+          <% sec.fields.forEach(f => { const v = r[f.name] ?? ''; const nm = 'r' + i + '_' + f.name; %>
+            <td>
+            <% if (f.type === 'checkbox') { %><input type="checkbox" name="<%= nm %>" <%= v ? 'checked' : '' %>>
+            <% } else if (f.type === 'select') { %>
+              <select name="<%= nm %>"><option value=""></option><% f.options.forEach(o => { %><option <%= v === o ? 'selected' : '' %>><%= o %></option><% }) %><% if (v && !f.options.includes(v)) { %><option selected><%= v %></option><% } %></select>
+            <% } else { %><input name="<%= nm %>" value="<%= v %>" class="<%= f.type === 'number' ? 'num' : '' %>" <%= f.type === 'date' ? 'type=date' : '' %>><% } %>
+            </td>
+          <% }) %>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+    </div>
+    <div class="actions"><button class="btn">Add selected rows</button> <a href="/returns/<%= ret.id %>/s/<%= sec.key %>">Cancel</a></div>
+  </form>
+  <% } %>
+</main>
+<%- include('partials/foot') %>

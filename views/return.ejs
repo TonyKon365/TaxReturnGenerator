@@ -1,0 +1,82 @@
+<%- include('partials/head') %>
+<% const c = calc.cages; const done = checklist.filter(i => i.status !== 'todo').length; %>
+<div class="layout">
+<%- include('partials/sidenav', { sec: null }) %>
+<main class="content">
+  <div class="sec-head">
+    <div>
+      <div class="crumb">Year of assessment · <%= calc.bounds.start %> to <%= calc.bounds.end %> · due <%= calc.rates.filingDeadline %></div>
+      <h1>Return <%= ret.year %><% if (ret.label) { %> <span class="si"><%= ret.label %></span><% } %></h1>
+    </div>
+    <form method="post" action="/returns/<%= ret.id %>/status" class="inline status-form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <select name="status" data-autosubmit><% ['draft','ready','filed'].forEach(s => { %><option <%= ret.status === s ? 'selected' : '' %>><%= s %></option><% }) %></select>
+    </form>
+  </div>
+
+  <div class="kpis">
+    <div><span>Assessable income</span><b><%= fmt(c[50]) %></b><small>cage 50</small></div>
+    <div><span>Taxable income</span><b><%= fmt(c[120]) %></b><small>cage 120</small></div>
+    <div><span>Total tax payable</span><b><%= fmt(c[170]) %></b><small>cage 170</small></div>
+    <div><span>Tax credits</span><b><%= fmt(c[180]) %></b><small>cage 180</small></div>
+    <% if (c[200] > 0) { %>
+      <div class="good"><span>Refund claimed</span><b><%= fmt(c[200]) %></b><small>cage 200</small></div>
+    <% } else { %>
+      <div class="<%= c[190] > 0 ? 'bad' : '' %>"><span>Balance tax payable</span><b><%= fmt(c[190]) %></b><small>cage 190</small></div>
+    <% } %>
+  </div>
+
+  <% if (calc.warnings.length) { %>
+    <div class="flash warn"><strong>Check before filing</strong><ul><% calc.warnings.forEach(w => { %><li><%= w %></li><% }) %></ul></div>
+  <% } %>
+  <% if (calc.notes.length) { %>
+    <div class="flash info"><ul><% calc.notes.forEach(w => { %><li><%= w %></li><% }) %></ul></div>
+  <% } %>
+
+  <section id="checklist" class="card">
+    <h2>Document checklist <span class="muted">(<%= done %> of <%= checklist.length %>)</span></h2>
+    <div class="progress"><i style="width:<%= Math.round(done / checklist.length * 100) %>%"></i></div>
+    <ul class="checklist">
+      <% checklist.forEach(it => { %>
+        <li class="<%= it.status %>">
+          <span class="tick"><%= it.status === 'done' ? '✓' : it.status === 'na' ? '–' : '' %></span>
+          <a href="/returns/<%= ret.id %>/s/<%= it.sections[0] %>"><%= it.title %></a>
+          <form method="post" action="/returns/<%= ret.id %>/checklist" class="inline">
+            <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="item" value="<%= it.id %>">
+            <button class="link small"><%= it.status === 'na' ? 'Undo' : it.status === 'todo' ? 'Not applicable' : '' %></button>
+          </form>
+        </li>
+      <% }) %>
+    </ul>
+  </section>
+
+  <% groups.forEach(g => { %>
+    <h2 class="grp-title"><%= g %></h2>
+    <div class="tiles">
+      <% sections.filter(s => s.group === g).forEach(s => { const k = counts[s.key] || {}; %>
+        <a class="tile <%= k.entries ? 'has' : '' %>" href="/returns/<%= ret.id %>/s/<%= s.key %>">
+          <strong><%= s.title %></strong><span class="si"><%= s.si %></span>
+          <small><%= k.entries || 0 %> row<%= k.entries === 1 ? '' : 's' %> · <%= k.docs || 0 %> file<%= k.docs === 1 ? '' : 's' %></small>
+        </a>
+      <% }) %>
+    </div>
+  <% }) %>
+
+  <section class="card">
+    <h2>Output & backup</h2>
+    <div class="btn-row">
+      <a class="btn" href="/returns/<%= ret.id %>/summary">Open filing summary</a>
+      <a class="btn ghost" href="/returns/<%= ret.id %>/export.zip">Download everything (ZIP)</a>
+      <a class="btn ghost" href="/returns/<%= ret.id %>/export.json">Export data (JSON)</a>
+    </div>
+    <form method="post" action="/returns/<%= ret.id %>/import.json?_csrf=<%= csrf %>" enctype="multipart/form-data" class="upload">
+      <label class="muted">Import data from a JSON export: <input type="file" name="file" accept=".json,application/json"></label>
+      <button class="btn small ghost">Import</button>
+    </form>
+    <form method="post" action="/returns/<%= ret.id %>/delete" class="inline" data-confirm="Delete this return and all its documents permanently?">
+      <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="link danger">Delete this return</button>
+    </form>
+  </section>
+</main>
+</div>
+<%- include('partials/foot') %>

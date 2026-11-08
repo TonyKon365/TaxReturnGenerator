@@ -1,0 +1,111 @@
+<%- include('partials/head') %>
+<div class="layout">
+<%- include('partials/sidenav') %>
+<main class="content">
+  <div class="sec-head">
+    <div>
+      <div class="crumb"><%= sec.group %><% if (sec.schedule) { %> · <%= sec.schedule %><% } %></div>
+      <h1><%= sec.title %> <span class="si"><%= sec.si %></span></h1>
+      <% if (sec.help) { %><p class="muted"><%= sec.help %></p><% } %>
+    </div>
+  </div>
+
+  <% if (typeof extractedNote !== 'undefined' && extractedNote) { %><div class="flash ok"><%= extractedNote %></div><% } %>
+  <% if (errors.length) { %><div class="flash error"><% errors.forEach(e => { %><div><%= e %></div><% }) %></div><% } %>
+
+  <% if (!sec.singleton) { %>
+  <section id="entries">
+    <% const shown = sec.fields.filter(f => f.type !== 'textarea').slice(0, 7); const sumF = sec.fields.find(f => f.sum); %>
+    <% if (rows.length) { %>
+    <div class="table-wrap">
+    <table class="grid">
+      <thead><tr><th>#</th><% shown.forEach(f => { %><th class="<%= f.type === 'number' ? 'right' : '' %>"><%= f.label.replace(/ \(Rs\.\)/,'') %></th><% }) %><th></th></tr></thead>
+      <tbody>
+      <% rows.forEach((r, i) => { %>
+        <tr class="<%= editing === r.id ? 'editing' : '' %>">
+          <td><%= i + 1 %></td>
+          <% shown.forEach(f => { const v = r.data[f.name]; %>
+            <td class="<%= f.type === 'number' ? 'right mono' : '' %>"><%= f.type === 'number' ? (v === '' || v === undefined ? '' : fmt(v)) : f.type === 'checkbox' ? (v ? '✓' : '') : v %></td>
+          <% }) %>
+          <td class="right nowrap">
+            <a href="/returns/<%= ret.id %>/s/<%= sec.key %>?edit=<%= r.id %>#form">Edit</a>
+            <form method="post" action="/returns/<%= ret.id %>/s/<%= sec.key %>/entries/<%= r.id %>/delete" class="inline" data-confirm="Delete this row?">
+              <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="link danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      </tbody>
+      <% if (sumF) { %>
+      <tfoot><tr><td></td><% shown.forEach(f => { %><td class="right mono"><%= f.name === sumF.name ? fmt(rows.reduce((a, r) => a + (Number(r.data[f.name]) || 0), 0)) : (f === shown[0] ? 'Total' : '') %></td><% }) %><td></td></tr></tfoot>
+      <% } %>
+    </table>
+    </div>
+    <% } else { %>
+      <p class="empty-row">No rows yet. Add them below, import a CSV, or upload a document<% if (aiEnabled) { %> and let the portal read it<% } %>.</p>
+    <% } %>
+  </section>
+  <% } %>
+
+  <section id="form" class="card">
+    <h2><%= sec.singleton ? 'Details' : editing ? 'Edit row' : 'Add a row' %></h2>
+    <form method="post" action="/returns/<%= ret.id %>/s/<%= sec.key %>/entries" class="form-grid">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <% if (editing) { %><input type="hidden" name="_entry" value="<%= editing %>"><% } %>
+      <% sec.fields.forEach(f => { %><%- include('partials/field', { f, values }) %><% }) %>
+      <div class="actions">
+        <button class="btn"><%= sec.singleton ? 'Save' : editing ? 'Save changes' : 'Add row' %></button>
+        <% if (editing) { %><a href="/returns/<%= ret.id %>/s/<%= sec.key %>">Cancel</a><% } %>
+      </div>
+    </form>
+  </section>
+
+  <section id="documents" class="card">
+    <h2>Supporting documents</h2>
+    <p class="muted">Invoices, statements, certificates, portfolio reports, screenshots — PDF, JPG, PNG, WEBP, HEIC, CSV or XLSX.
+      <% if (aiEnabled) { %>Use <strong>Read with AI</strong> to fill rows from a PDF or image; you review everything before it is saved.<% } %></p>
+    <% if (docs.length) { %>
+    <ul class="docs">
+      <% docs.forEach(d => { %>
+        <li>
+          <a href="/returns/<%= ret.id %>/docs/<%= d.id %>" target="_blank" rel="noopener"><%= d.original_name %></a>
+          <span class="muted"><%= (d.size/1024).toFixed(0) %> KB<% if (d.note) { %> · <%= d.note %><% } %></span>
+          <span class="doc-actions">
+            <% if (d.canExtract) { %>
+              <form method="post" action="/returns/<%= ret.id %>/docs/<%= d.id %>/extract" class="inline" data-busy="Reading document…">
+                <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn small ghost"><%= d.extracted ? 'Review extracted rows' : 'Read with AI' %></button>
+              </form>
+            <% } %>
+            <form method="post" action="/returns/<%= ret.id %>/docs/<%= d.id %>/delete" class="inline" data-confirm="Delete this document?">
+              <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="link danger">Delete</button>
+            </form>
+          </span>
+        </li>
+      <% }) %>
+    </ul>
+    <% } %>
+    <form method="post" action="/returns/<%= ret.id %>/s/<%= sec.key %>/upload?_csrf=<%= csrf %>" enctype="multipart/form-data" class="upload">
+      <input type="file" name="files" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.csv,.xlsx,image/*,application/pdf">
+      <input name="note" placeholder="Note (optional), e.g. Sampath passbook 31.03">
+      <button class="btn ghost">Upload</button>
+    </form>
+  </section>
+
+  <% if (!sec.singleton) { %>
+  <section class="card">
+    <h2>Import from CSV</h2>
+    <p class="muted">Columns can use the field names or labels. <a href="/returns/<%= ret.id %>/s/<%= sec.key %>/template.csv">Download template</a>. You review the rows before they are added.</p>
+    <form method="post" action="/returns/<%= ret.id %>/s/<%= sec.key %>/csv?_csrf=<%= csrf %>" enctype="multipart/form-data" class="upload">
+      <input type="file" name="file" accept=".csv,text/csv">
+      <button class="btn ghost">Preview import</button>
+    </form>
+  </section>
+  <% } %>
+
+  <nav class="pager">
+    <% if (prev) { %><a href="/returns/<%= ret.id %>/s/<%= prev.key %>">← <%= prev.title %></a><% } else { %><span></span><% } %>
+    <% if (next) { %><a href="/returns/<%= ret.id %>/s/<%= next.key %>"><%= next.title %> →</a><% } else { %><a href="/returns/<%= ret.id %>/summary">Filing summary →</a><% } %>
+  </nav>
+</main>
+</div>
+<%- include('partials/foot') %>
